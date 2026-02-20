@@ -42,6 +42,11 @@ WINDOW_SIZES = {
 }
 
 
+def font_scale_for_width(width: int) -> float:
+    # Keep text proportional when switching 1/2/3 window presets.
+    return FONT_SCALE * (width / 2560.0)
+
+
 def normalize(v: np.ndarray) -> np.ndarray:
     n = float(np.linalg.norm(v))
     if n < EPS:
@@ -171,8 +176,8 @@ def ptc_score(x: np.ndarray, e1: np.ndarray, kernel_angle: float, targets: List[
     return total
 
 
-def draw_text(surface, text, pos, color=(240, 240, 240), size=20, align_left=True):
-    scaled = max(12, int(round(size * FONT_SCALE)))
+def draw_text(surface, text, pos, color=(240, 240, 240), size=20, align_left=True, font_scale=FONT_SCALE):
+    scaled = max(12, int(round(size * font_scale)))
     font = pygame.font.SysFont("DejaVu Sans", scaled)
     img = font.render(text, True, color)
     rect = img.get_rect()
@@ -180,8 +185,8 @@ def draw_text(surface, text, pos, color=(240, 240, 240), size=20, align_left=Tru
     surface.blit(img, rect)
 
 
-def line_step(size: int, pad: int = 6) -> int:
-    return max(12, int(round(size * FONT_SCALE))) + pad
+def line_step(size: int, pad: int = 6, font_scale=FONT_SCALE) -> int:
+    return max(12, int(round(size * font_scale))) + pad
 
 
 def draw_arrow(
@@ -369,7 +374,7 @@ def main():
     }
 
     def reset_game():
-        targets_local = make_targets(2)
+        targets_local = make_targets(3)
         curves_local = [target_points_for_display(t) for t in targets_local]
         p1_local, p2_local = reset_players()
         return targets_local, curves_local, p1_local, p2_local, None
@@ -380,6 +385,7 @@ def main():
 
     while running:
         dt = clock.tick(60) / 1000.0
+        font_scale = font_scale_for_width(w)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -503,8 +509,15 @@ def main():
 
         hud_x = 14
         hud_y = 12
-        draw_text(screen, "Filter Hunter 2P (PTC Racing)", (hud_x, hud_y), (230, 235, 245), 26)
-        hud_y += line_step(26, pad=8)
+        draw_text(
+            screen,
+            "Filter Hunter 2P (PTC Racing)",
+            (hud_x, hud_y),
+            (230, 235, 245),
+            26,
+            font_scale=font_scale,
+        )
+        hud_y += line_step(26, pad=8, font_scale=font_scale)
 
         draw_text(
             screen,
@@ -512,44 +525,49 @@ def main():
             (hud_x, hud_y),
             p1_colors["dot"],
             20,
+            font_scale=font_scale,
         )
-        hud_y += line_step(20, pad=6)
+        hud_y += line_step(20, pad=6, font_scale=font_scale)
         draw_text(
             screen,
             f"P2 Score: {p2.score:4d}  Combo: {p2.combo:2d}  Resp: {resp2:+0.3f}",
             (hud_x, hud_y),
             p2_colors["dot"],
             20,
+            font_scale=font_scale,
         )
-        hud_y += line_step(20, pad=6)
+        hud_y += line_step(20, pad=6, font_scale=font_scale)
         draw_text(
             screen,
             f"Race target: {WIN_SCORE} points   Capture if PTC response > {capture_threshold:.2f}",
             (hud_x, hud_y),
             (190, 210, 240),
             18,
+            font_scale=font_scale,
         )
-        hud_y += line_step(18, pad=6)
+        hud_y += line_step(18, pad=6, font_scale=font_scale)
         draw_text(
             screen,
             "Orange/Red: transported axis  Green/Teal: control heading  Blue/Violet: kernel scan axis",
             (hud_x, hud_y),
             (148, 163, 184),
             18,
+            font_scale=font_scale,
         )
 
-        controls_y = h - line_step(18, pad=12)
+        controls_y = h - line_step(18, pad=12, font_scale=font_scale)
         draw_text(
             screen,
             "P1 Arrows + Down scan | P2 WASD + S scan | 1/2/3 size | R restart | Esc quit",
             (hud_x, controls_y),
             (148, 163, 184),
             18,
+            font_scale=font_scale,
         )
 
         if winner is not None:
             if winner == 0:
-                msg = "DRAW - BOTH REACHED 1000"
+                msg = f"DRAW - BOTH REACHED {WIN_SCORE}"
                 color = (250, 204, 21)
             elif winner == 1:
                 msg = "PLAYER 1 WINS!  (Press R to restart)"
@@ -557,7 +575,15 @@ def main():
             else:
                 msg = "PLAYER 2 WINS!  (Press R to restart)"
                 color = p2_colors["dot"]
-            draw_text(screen, msg, (w // 2, h // 2), color=color, size=34, align_left=False)
+            draw_text(
+                screen,
+                msg,
+                (w // 2, h // 2),
+                color=color,
+                size=44,
+                align_left=False,
+                font_scale=font_scale,
+            )
 
         pygame.display.flip()
 
