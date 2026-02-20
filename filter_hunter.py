@@ -12,6 +12,7 @@ Controls:
 - Left/Right: steer (change heading angle in tangent plane)
 - Up: move forward
 - Down: rotate kernel clockwise relative to the transported frame (scan)
+- 1/2/3: switch window size (1280/2560/3840 wide)
 - R: respawn targets/signal
 - Esc/Quit: exit
 
@@ -37,6 +38,11 @@ TRAIL_MAX_POINTS = 300
 TANGENT_ARROW_LENGTH = 80
 TANGENT_ARROW_WIDTH = 6
 TANGENT_ARROW_HEAD = 20
+WINDOW_SIZES = {
+    1: (1280, 720),
+    2: (2560, 1440),
+    3: (3840, 2160),
+}
 
 
 def normalize(v: np.ndarray) -> np.ndarray:
@@ -253,6 +259,29 @@ def draw_polyline_wrapped(screen, pts: List[Tuple[int, int]], color, width=2, w=
             pygame.draw.line(screen, color, (x0, y0), (x1, y1), width)
 
 
+def build_grid_surface(w: int, h: int) -> pygame.Surface:
+    grid = pygame.Surface((w, h))
+    grid.fill((5, 10, 18))
+    for i in range(13):
+        lon = -math.pi + i * (2 * math.pi / 12)
+        pts = []
+        for j in range(181):
+            lat = -math.pi / 2 + j * (math.pi / 180)
+            sx, sy = screen_from_lonlat(lon, lat, w, h)
+            pts.append((sx, sy))
+        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+
+    for j in range(7):
+        lat = -math.pi / 2 + j * (math.pi / 6)
+        pts = []
+        for i in range(361):
+            lon = -math.pi + i * (2 * math.pi / 360)
+            sx, sy = screen_from_lonlat(lon, lat, w, h)
+            pts.append((sx, sy))
+        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+    return grid
+
+
 def target_points_for_display(t: RidgeTarget, samples: int = 140) -> List[np.ndarray]:
     """
     Build points along the ridge great circle (c·x=0) for display.
@@ -283,30 +312,12 @@ def target_points_for_display(t: RidgeTarget, samples: int = 140) -> List[np.nda
 def main():
     pygame.init()
     pygame.display.set_caption("Filter Hunter (PTC) — Pygame")
-    W, H = 2560, 1440
+    W, H = WINDOW_SIZES[3]
     screen = pygame.display.set_mode((W, H))
     clock = pygame.time.Clock()
 
     # pre-render map grid
-    grid = pygame.Surface((W, H))
-    grid.fill((5, 10, 18))
-    for i in range(13):
-        lon = -math.pi + i * (2 * math.pi / 12)
-        pts = []
-        for j in range(181):
-            lat = -math.pi / 2 + j * (math.pi / 180)
-            sx, sy = screen_from_lonlat(lon, lat, W, H)
-            pts.append((sx, sy))
-        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
-
-    for j in range(7):
-        lat = -math.pi / 2 + j * (math.pi / 6)
-        pts = []
-        for i in range(361):
-            lon = -math.pi + i * (2 * math.pi / 360)
-            sx, sy = screen_from_lonlat(lon, lat, W, H)
-            pts.append((sx, sy))
-        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+    grid = build_grid_surface(W, H)
 
     # game objects
     targets = make_targets(2)
@@ -346,6 +357,21 @@ def main():
                     target_curves = [target_points_for_display(t) for t in targets]
                     score = 0
                     combo = 0
+                    trail.clear()
+                elif event.key in (pygame.K_1, pygame.K_KP1):
+                    W, H = WINDOW_SIZES[1]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
+                    trail.clear()
+                elif event.key in (pygame.K_2, pygame.K_KP2):
+                    W, H = WINDOW_SIZES[2]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
+                    trail.clear()
+                elif event.key in (pygame.K_3, pygame.K_KP3):
+                    W, H = WINDOW_SIZES[3]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
                     trail.clear()
 
         keys = pygame.key.get_pressed()
@@ -471,7 +497,7 @@ def main():
         controls_y = H - line_step(18, pad=10)
         draw_text(
             screen,
-            "Controls: Up move, Left/Right steer, Down scan clockwise, R respawn",
+            "Controls: Up move, Left/Right steer, Down scan, 1/2/3 size, R respawn",
             (hud_x, controls_y),
             (148, 163, 184),
             18,

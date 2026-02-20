@@ -12,6 +12,7 @@ Controls:
 - Up: move forward
 - Down: brake (slow)
 - Space: attempt to close/unlock (only works if near start)
+- 1/2/3: switch window size (1280/2560/3840 wide)
 - R: reset level (new target)
 - Esc/Quit: exit
 
@@ -43,6 +44,11 @@ FONT_SCALE = 1.8
 TANGENT_ARROW_LENGTH = 84
 TANGENT_ARROW_WIDTH = 6
 TANGENT_ARROW_HEAD = 22
+WINDOW_SIZES = {
+    1: (1280, 720),
+    2: (2560, 1440),
+    3: (3840, 2160),
+}
 
 
 def normalize(v: np.ndarray) -> np.ndarray:
@@ -231,6 +237,29 @@ def draw_polyline_wrapped(screen, pts: List[Tuple[int, int]], color, width=2, w=
             pygame.draw.line(screen, color, (x0, y0), (x1, y1), width)
 
 
+def build_grid_surface(w: int, h: int) -> pygame.Surface:
+    grid = pygame.Surface((w, h))
+    grid.fill((7, 11, 20))
+    for i in range(13):
+        lon = -math.pi + i * (2 * math.pi / 12)
+        pts = []
+        for j in range(181):
+            lat = -math.pi / 2 + j * (math.pi / 180)
+            sx, sy = screen_from_lonlat(lon, lat, w, h)
+            pts.append((sx, sy))
+        pygame.draw.lines(grid, (22, 35, 60), False, pts, 1)
+
+    for j in range(7):
+        lat = -math.pi / 2 + j * (math.pi / 6)
+        pts = []
+        for i in range(361):
+            lon = -math.pi + i * (2 * math.pi / 360)
+            sx, sy = screen_from_lonlat(lon, lat, w, h)
+            pts.append((sx, sy))
+        pygame.draw.lines(grid, (22, 35, 60), False, pts, 1)
+    return grid
+
+
 # -------------------------
 # Main
 # -------------------------
@@ -259,7 +288,7 @@ def reset_player() -> Player:
 def main():
     pygame.init()
     pygame.display.set_caption("Holonomy Lock (PTC) — Pygame")
-    W, H = 2560, 1440
+    W, H = WINDOW_SIZES[3]
     screen = pygame.display.set_mode((W, H))
     clock = pygame.time.Clock()
 
@@ -274,29 +303,7 @@ def main():
     last_hol_deg = None
 
     # background grid pre-render
-    grid = pygame.Surface((W, H))
-    grid.fill((7, 11, 20))
-    # meridians/parallels
-    for i in range(13):
-        lon = -math.pi + i * (2 * math.pi / 12)
-        pts = []
-        for j in range(181):
-            lat = -math.pi / 2 + j * (math.pi / 180)
-            x = np.array([math.cos(lat) * math.cos(lon),
-                          math.cos(lat) * math.sin(lon),
-                          math.sin(lat)], dtype=np.float64)
-            sx, sy = screen_from_lonlat(lon, lat, W, H)
-            pts.append((sx, sy))
-        pygame.draw.lines(grid, (22, 35, 60), False, pts, 1)
-
-    for j in range(7):
-        lat = -math.pi / 2 + j * (math.pi / 6)
-        pts = []
-        for i in range(361):
-            lon = -math.pi + i * (2 * math.pi / 360)
-            sx, sy = screen_from_lonlat(lon, lat, W, H)
-            pts.append((sx, sy))
-        pygame.draw.lines(grid, (22, 35, 60), False, pts, 1)
+    grid = build_grid_surface(W, H)
 
     while running:
         dt = clock.tick(60) / 1000.0
@@ -316,6 +323,21 @@ def main():
                     trail.clear()
                     unlocked = False
                     last_hol_deg = None
+                elif event.key in (pygame.K_1, pygame.K_KP1):
+                    W, H = WINDOW_SIZES[1]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
+                    trail.clear()
+                elif event.key in (pygame.K_2, pygame.K_KP2):
+                    W, H = WINDOW_SIZES[2]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
+                    trail.clear()
+                elif event.key in (pygame.K_3, pygame.K_KP3):
+                    W, H = WINDOW_SIZES[3]
+                    screen = pygame.display.set_mode((W, H))
+                    grid = build_grid_surface(W, H)
+                    trail.clear()
                 elif event.key == pygame.K_SPACE:
                     # always attempt measurement if near start
                     ang = math.acos(float(np.clip(np.dot(player.x, x0), -1.0, 1.0)))
@@ -443,7 +465,7 @@ def main():
         controls_y = H - line_step(18, pad=10)
         draw_text(
             screen,
-            "Controls: Up move, Left/Right steer, Space check, R reset",
+            "Controls: Up move, Left/Right steer, Space check, 1/2/3 size, R reset",
             (hud_x, controls_y),
             (148, 163, 184),
             18,

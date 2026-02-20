@@ -14,6 +14,7 @@ Controls:
 - Player 2:
   A/D steer, W forward, S scan clockwise
 - Global:
+  1/2/3 size (1280/2560/3840 wide)
   R restart, Esc/Q exit
 """
 
@@ -34,6 +35,11 @@ TRAIL_MAX_POINTS = 300
 TANGENT_ARROW_LENGTH = 80
 TANGENT_ARROW_WIDTH = 6
 TANGENT_ARROW_HEAD = 20
+WINDOW_SIZES = {
+    1: (1280, 720),
+    2: (2560, 1440),
+    3: (3840, 2160),
+}
 
 
 def normalize(v: np.ndarray) -> np.ndarray:
@@ -222,6 +228,26 @@ def draw_polyline_wrapped(screen, pts: List[Tuple[int, int]], color, width=2, w=
             pygame.draw.line(screen, color, (x0, y0), (x1, y1), width)
 
 
+def build_grid_surface(w: int, h: int) -> pygame.Surface:
+    grid = pygame.Surface((w, h))
+    grid.fill((5, 10, 18))
+    for i in range(13):
+        lon = -math.pi + i * (2 * math.pi / 12)
+        pts = []
+        for j in range(181):
+            lat = -math.pi / 2 + j * (math.pi / 180)
+            pts.append(screen_from_lonlat(lon, lat, w, h))
+        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+    for j in range(7):
+        lat = -math.pi / 2 + j * (math.pi / 6)
+        pts = []
+        for i in range(361):
+            lon = -math.pi + i * (2 * math.pi / 360)
+            pts.append(screen_from_lonlat(lon, lat, w, h))
+        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+    return grid
+
+
 def target_points_for_display(t: RidgeTarget, samples: int = 140) -> List[np.ndarray]:
     c = normalize(t.c)
     v = np.array([0.0, 0.0, 1.0], dtype=np.float64)
@@ -308,26 +334,11 @@ def update_player(player: PlayerState, controls: ControlScheme, keys, dt: float)
 def main():
     pygame.init()
     pygame.display.set_caption("Filter Hunter 2P (PTC Racing) — Pygame")
-    w, h = 2560, 1440
+    w, h = WINDOW_SIZES[3]
     screen = pygame.display.set_mode((w, h))
     clock = pygame.time.Clock()
 
-    grid = pygame.Surface((w, h))
-    grid.fill((5, 10, 18))
-    for i in range(13):
-        lon = -math.pi + i * (2 * math.pi / 12)
-        pts = []
-        for j in range(181):
-            lat = -math.pi / 2 + j * (math.pi / 180)
-            pts.append(screen_from_lonlat(lon, lat, w, h))
-        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
-    for j in range(7):
-        lat = -math.pi / 2 + j * (math.pi / 6)
-        pts = []
-        for i in range(361):
-            lon = -math.pi + i * (2 * math.pi / 360)
-            pts.append(screen_from_lonlat(lon, lat, w, h))
-        pygame.draw.lines(grid, (18, 32, 54), False, pts, 1)
+    grid = build_grid_surface(w, h)
 
     controls_1 = ControlScheme(
         left=pygame.K_LEFT,
@@ -378,6 +389,24 @@ def main():
                     running = False
                 elif event.key == pygame.K_r:
                     targets, target_curves, p1, p2, winner = reset_game()
+                elif event.key in (pygame.K_1, pygame.K_KP1):
+                    w, h = WINDOW_SIZES[1]
+                    screen = pygame.display.set_mode((w, h))
+                    grid = build_grid_surface(w, h)
+                    p1.trail.clear()
+                    p2.trail.clear()
+                elif event.key in (pygame.K_2, pygame.K_KP2):
+                    w, h = WINDOW_SIZES[2]
+                    screen = pygame.display.set_mode((w, h))
+                    grid = build_grid_surface(w, h)
+                    p1.trail.clear()
+                    p2.trail.clear()
+                elif event.key in (pygame.K_3, pygame.K_KP3):
+                    w, h = WINDOW_SIZES[3]
+                    screen = pygame.display.set_mode((w, h))
+                    grid = build_grid_surface(w, h)
+                    p1.trail.clear()
+                    p2.trail.clear()
 
         keys = pygame.key.get_pressed()
 
@@ -512,7 +541,7 @@ def main():
         controls_y = h - line_step(18, pad=12)
         draw_text(
             screen,
-            "P1 Arrows + Down scan | P2 WASD + S scan | R restart | Esc quit",
+            "P1 Arrows + Down scan | P2 WASD + S scan | 1/2/3 size | R restart | Esc quit",
             (hud_x, controls_y),
             (148, 163, 184),
             18,
